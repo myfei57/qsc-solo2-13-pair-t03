@@ -63,6 +63,13 @@ _ENV_FIELDS: dict[str, Any] = {
     "waste_drum_level_min": float,
     "waste_exhaust_temp_max_c": float,
     "waste_latch_min_hold_seconds": float,
+    "cooling_pump_total": int,
+    "cooling_fan_total": int,
+    "cooling_temp_high_c": float,
+    "cooling_temp_low_c": float,
+    "cooling_temp_step_c": float,
+    "cooling_level_min": float,
+    "cooling_latch_min_hold_seconds": float,
     "furnace_purge_seconds": float,
     "furnace_min_smelt_dwell_seconds": float,
     "furnace_transition_timeout_seconds": float,
@@ -115,6 +122,15 @@ class Settings:
     waste_drum_level_min: float = 0.40
     waste_exhaust_temp_max_c: float = 380.0
     waste_latch_min_hold_seconds: float = 30.0
+
+    # 炉体/水套循环水：按进水温度分档投切循环泵与冷却塔风机，水池低水位联锁切泵。
+    cooling_pump_total: int = 3
+    cooling_fan_total: int = 3
+    cooling_temp_high_c: float = 35.0
+    cooling_temp_low_c: float = 31.0
+    cooling_temp_step_c: float = 2.0
+    cooling_level_min: float = 0.35
+    cooling_latch_min_hold_seconds: float = 20.0
 
     # 闪速炉编排。
     furnace_purge_seconds: float = 15.0
@@ -227,6 +243,35 @@ class Settings:
         if self.waste_latch_min_hold_seconds <= 0:
             raise ValidationError(
                 "闩锁最短保持时长必须为正", details={"hold": self.waste_latch_min_hold_seconds}
+            )
+        if self.cooling_pump_total < 1:
+            raise ValidationError(
+                "循环泵装机台数必须为正", details={"pump_total": self.cooling_pump_total}
+            )
+        if self.cooling_fan_total < 1:
+            raise ValidationError(
+                "冷却塔风机装机台数必须为正", details={"fan_total": self.cooling_fan_total}
+            )
+        if not 0 < self.cooling_temp_low_c < self.cooling_temp_high_c:
+            raise ValidationError(
+                "循环水升/降档温度阈值不自洽",
+                details={
+                    "low": self.cooling_temp_low_c,
+                    "high": self.cooling_temp_high_c,
+                },
+            )
+        if self.cooling_temp_step_c <= 0:
+            raise ValidationError(
+                "循环水每档温差必须为正", details={"step": self.cooling_temp_step_c}
+            )
+        if not 0 < self.cooling_level_min < 1:
+            raise ValidationError(
+                "水池水位下限必须是 (0,1) 区间比例", details={"min": self.cooling_level_min}
+            )
+        if self.cooling_latch_min_hold_seconds <= 0:
+            raise ValidationError(
+                "循环水闩锁最短保持时长必须为正",
+                details={"hold": self.cooling_latch_min_hold_seconds},
             )
         if self.furnace_purge_seconds <= 0:
             raise ValidationError("吹扫时长必须为正", details={"purge": self.furnace_purge_seconds})
