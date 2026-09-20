@@ -14,6 +14,7 @@ from .component import Component, ensure_actor
 from .conc import ConcentrateSystem
 from .config import Settings
 from .conv import Converter
+from .cooling import CoolingWaterSystem
 from .errors import ValidationError
 from .furnace import FlashFurnace
 from .matte import MatteTap
@@ -64,6 +65,7 @@ class Application:
         self.slag = SlagTap(ctx, settler=self.settler, waste=self.waste)
         self.matte = MatteTap(ctx, settler=self.settler, waste=self.waste, slag=self.slag)
         self.conv = Converter(ctx, matte=self.matte)
+        self.cooling = CoolingWaterSystem(ctx)
         self.conc = ConcentrateSystem(
             ctx, burner=self.burner, oxygen=self.oxygen, waste=self.waste, settler=self.settler
         )
@@ -91,6 +93,7 @@ class Application:
             self.matte,
             self.conv,
             self.waste,
+            self.cooling,
         )
         self._by_name: dict[str, Component] = {component.name: component for component in self.components}
 
@@ -516,6 +519,52 @@ class Application:
                 drum_level=params.number("drum_level", minimum=0.0, maximum=1.0),
                 exhaust_temp_c=params.number("exhaust_temp_c", minimum=0.0),
                 tube_leak=params.boolean("tube_leak", required=False, default=False),
+                correlation_id=params.optional_text("correlation_id"),
+                expected_generation=params.optional_number("expected_generation"),
+            )
+
+        @register("cooling.start")
+        def _cooling_start(params: Params) -> Mapping[str, Any]:
+            return self.cooling.start(
+                params.text("actor", required=False, default="control-room"),
+                pool_level=params.number("pool_level", minimum=0.0, maximum=1.0),
+                correlation_id=params.optional_text("correlation_id"),
+                expected_generation=params.optional_number("expected_generation"),
+            )
+
+        @register("cooling.update")
+        def _cooling_update(params: Params) -> Mapping[str, Any]:
+            return self.cooling.update(
+                params.text("actor", required=False, default="control-room"),
+                inlet_temp_c=params.number("inlet_temp_c", minimum=0.0, maximum=150.0),
+                pool_level=params.number("pool_level", minimum=0.0, maximum=1.0),
+                outlet_temp_c=params.number("outlet_temp_c", required=False, default=0.0, minimum=0.0, maximum=150.0),
+                correlation_id=params.optional_text("correlation_id"),
+                expected_generation=params.optional_number("expected_generation"),
+            )
+
+        @register("cooling.evaluate")
+        def _cooling_evaluate(params: Params) -> Mapping[str, Any]:
+            return self.cooling.evaluate(
+                params.text("actor", required=False, default="control-room"),
+                correlation_id=params.optional_text("correlation_id"),
+                expected_generation=params.optional_number("expected_generation"),
+            )
+
+        @register("cooling.stop")
+        def _cooling_stop(params: Params) -> Mapping[str, Any]:
+            return self.cooling.stop(
+                params.text("actor", required=False, default="control-room"),
+                correlation_id=params.optional_text("correlation_id"),
+                expected_generation=params.optional_number("expected_generation"),
+            )
+
+        @register("cooling.reset")
+        def _cooling_reset(params: Params) -> Mapping[str, Any]:
+            return self.cooling.reset(
+                params.text("actor", required=False, default="control-room"),
+                note=params.text("note"),
+                pool_level=params.number("pool_level", minimum=0.0, maximum=1.0),
                 correlation_id=params.optional_text("correlation_id"),
                 expected_generation=params.optional_number("expected_generation"),
             )

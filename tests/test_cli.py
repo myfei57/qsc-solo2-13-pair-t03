@@ -96,6 +96,27 @@ class CliTest(unittest.TestCase):
         self.assertEqual(1, unknown.returncode)
         self.assertEqual("validation-error", self._json(unknown)["error"])
 
+    def test_cooling_call_sequence(self) -> None:
+        started = run_cli("call", "cooling.start", "--param", "pool_level=0.6", root=self.root)
+        self.assertEqual(0, started.returncode)
+        self.assertEqual("circulating", self._json(started)["result"]["state"])
+        updated = run_cli(
+            "call",
+            "cooling.update",
+            "--param",
+            "inlet_temp_c=33.0",
+            "--param",
+            "pool_level=0.6",
+            root=self.root,
+        )
+        self.assertEqual(0, updated.returncode)
+        evaluated = run_cli("call", "cooling.evaluate", root=self.root)
+        self.assertEqual(0, evaluated.returncode)
+        self.assertEqual("stage-up", self._json(evaluated)["result"]["evaluation"]["adjustment"])
+        component = run_cli("status", "--component", "cooling", root=self.root)
+        self.assertEqual(0, component.returncode)
+        self.assertEqual(2, self._json(component)["status"]["pumps_running"])
+
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

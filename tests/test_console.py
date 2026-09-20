@@ -134,6 +134,25 @@ class ConsoleTest(unittest.TestCase):
         self.assertIn("matte", payload["zones"]["settler"])
         self.assertIn("conv", payload["zones"]["converter"])
 
+    def test_cooling_actions_registered(self) -> None:
+        status, payload = self._request("POST", "/api/cooling/start", {"actor": "http-test", "pool_level": 0.6})
+        self.assertEqual(200, status)
+        self.assertEqual("circulating", payload["result"]["state"])
+        status, payload = self._request(
+            "POST", "/api/cooling/update", {"actor": "http-test", "inlet_temp_c": 33.0, "pool_level": 0.6}
+        )
+        self.assertEqual(200, status)
+        status, payload = self._request("POST", "/api/cooling/evaluate", {"actor": "http-test"})
+        self.assertEqual(200, status)
+        self.assertEqual("stage-up", payload["result"]["evaluation"]["adjustment"])
+        self.assertEqual(2, payload["result"]["pumps_running"])
+        status, component = self._request("GET", "/api/components/cooling")
+        self.assertEqual(200, status)
+        self.assertEqual("cooling", component["name"])
+        self.assertEqual(2, component["status"]["pumps_running"])
+        status, zones = self._request("GET", "/api/zones")
+        self.assertIn("cooling", zones["zones"]["utility"])
+
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

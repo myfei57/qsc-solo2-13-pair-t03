@@ -63,6 +63,18 @@ _ENV_FIELDS: dict[str, Any] = {
     "waste_drum_level_min": float,
     "waste_exhaust_temp_max_c": float,
     "waste_latch_min_hold_seconds": float,
+    "cooling_pump_count": int,
+    "cooling_fan_count": int,
+    "cooling_inlet_temp_warn_c": float,
+    "cooling_inlet_temp_step_c": float,
+    "cooling_temp_hysteresis_c": float,
+    "cooling_inlet_temp_max_c": float,
+    "cooling_pool_level_low": float,
+    "cooling_pool_level_min": float,
+    "cooling_pool_level_max": float,
+    "cooling_adjust_min_interval_seconds": float,
+    "cooling_measure_max_age_seconds": float,
+    "cooling_latch_min_hold_seconds": float,
     "furnace_purge_seconds": float,
     "furnace_min_smelt_dwell_seconds": float,
     "furnace_transition_timeout_seconds": float,
@@ -115,6 +127,20 @@ class Settings:
     waste_drum_level_min: float = 0.40
     waste_exhaust_temp_max_c: float = 380.0
     waste_latch_min_hold_seconds: float = 30.0
+
+    # 循环水（炉体/水套冷却）阶梯投切与联锁。
+    cooling_pump_count: int = 3
+    cooling_fan_count: int = 3
+    cooling_inlet_temp_warn_c: float = 32.0
+    cooling_inlet_temp_step_c: float = 1.5
+    cooling_temp_hysteresis_c: float = 0.5
+    cooling_inlet_temp_max_c: float = 40.0
+    cooling_pool_level_low: float = 0.40
+    cooling_pool_level_min: float = 0.25
+    cooling_pool_level_max: float = 0.90
+    cooling_adjust_min_interval_seconds: float = 30.0
+    cooling_measure_max_age_seconds: float = 120.0
+    cooling_latch_min_hold_seconds: float = 30.0
 
     # 闪速炉编排。
     furnace_purge_seconds: float = 15.0
@@ -227,6 +253,58 @@ class Settings:
         if self.waste_latch_min_hold_seconds <= 0:
             raise ValidationError(
                 "闩锁最短保持时长必须为正", details={"hold": self.waste_latch_min_hold_seconds}
+            )
+        if self.cooling_pump_count < 1:
+            raise ValidationError(
+                "循环泵装机台数必须为正", details={"count": self.cooling_pump_count}
+            )
+        if self.cooling_fan_count < 1:
+            raise ValidationError(
+                "冷却塔风机装机台数必须为正", details={"count": self.cooling_fan_count}
+            )
+        if not 0 < self.cooling_inlet_temp_warn_c < self.cooling_inlet_temp_max_c:
+            raise ValidationError(
+                "循环水进水温度量程不合法",
+                details={
+                    "warn": self.cooling_inlet_temp_warn_c,
+                    "max": self.cooling_inlet_temp_max_c,
+                },
+            )
+        if self.cooling_inlet_temp_step_c <= 0:
+            raise ValidationError(
+                "循环水档位温差必须为正", details={"step": self.cooling_inlet_temp_step_c}
+            )
+        if not 0 <= self.cooling_temp_hysteresis_c < self.cooling_inlet_temp_step_c:
+            raise ValidationError(
+                "循环水回差必须小于档位温差",
+                details={
+                    "hysteresis": self.cooling_temp_hysteresis_c,
+                    "step": self.cooling_inlet_temp_step_c,
+                },
+            )
+        if not 0 < self.cooling_pool_level_min < self.cooling_pool_level_low < self.cooling_pool_level_max <= 1:
+            raise ValidationError(
+                "循环水池水位量程不合法",
+                details={
+                    "min": self.cooling_pool_level_min,
+                    "low": self.cooling_pool_level_low,
+                    "max": self.cooling_pool_level_max,
+                },
+            )
+        if self.cooling_adjust_min_interval_seconds <= 0:
+            raise ValidationError(
+                "循环水最小调整间隔必须为正",
+                details={"interval": self.cooling_adjust_min_interval_seconds},
+            )
+        if self.cooling_measure_max_age_seconds <= 0:
+            raise ValidationError(
+                "循环水测点时效窗口必须为正",
+                details={"window": self.cooling_measure_max_age_seconds},
+            )
+        if self.cooling_latch_min_hold_seconds <= 0:
+            raise ValidationError(
+                "循环水闩锁最短保持时长必须为正",
+                details={"hold": self.cooling_latch_min_hold_seconds},
             )
         if self.furnace_purge_seconds <= 0:
             raise ValidationError("吹扫时长必须为正", details={"purge": self.furnace_purge_seconds})
